@@ -1,0 +1,658 @@
+Index: app/src/main/java/com/mikel/gestionlibrosv2/BookNotesScreen.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/mikel/gestionlibrosv2/BookNotesScreen.kt b/app/src/main/java/com/mikel/gestionlibrosv2/BookNotesScreen.kt
+--- a/app/src/main/java/com/mikel/gestionlibrosv2/BookNotesScreen.kt	
++++ b/app/src/main/java/com/mikel/gestionlibrosv2/BookNotesScreen.kt	(date 1732387419850)
+@@ -18,7 +18,7 @@
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.text.KeyboardOptions
+ import androidx.compose.foundation.text.selection.SelectionContainer
+-import androidx.compose.material.*
++import androidx.compose.material3.*
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.filled.ArrowBack
+ import androidx.compose.material.icons.filled.Delete
+@@ -41,281 +41,371 @@
+ import com.google.mlkit.vision.common.InputImage
+ import com.google.mlkit.vision.text.TextRecognition
+ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
++import com.mikel.gestionlibrosv2.ui.theme.GestionLibrosV2Theme
+ import java.io.File
+ import java.util.concurrent.Executors
+ 
++@kotlin.OptIn(ExperimentalMaterial3Api::class)
+ @Composable
+ fun BookNotesScreen(navController: NavController, book: Book, viewModel: BookSearchViewModel) {
+-    var notes by remember { mutableStateOf(book.notes?.split("\n\n") ?: emptyList()) }
+-    var showDialog by remember { mutableStateOf(false) }
+-    var showNoteInputDialog by remember { mutableStateOf(false) }
+-    var newNote by remember { mutableStateOf("") }
+-    var page by remember { mutableStateOf("") }
+-    var showCamera by remember { mutableStateOf(false) }
+-    var scannedText by remember { mutableStateOf("") }
+-    var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
+-    var selectedText by remember { mutableStateOf("") }
+-    var showSelectedTextDialog by remember { mutableStateOf(false) }
+-    var showScannedTextDialog by remember { mutableStateOf(false) }
+-    var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+-    var noteToDelete by remember { mutableStateOf("") }
+-    var expandedNote by remember { mutableStateOf<String?>(null) }
+-    val context = LocalContext.current
+-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+-        contract = ActivityResultContracts.RequestPermission()
+-    ) { isGranted ->
+-        if (isGranted) {
+-            showCamera = true
+-        } else {
+-            Toast.makeText(context, "Camera permission is required to scan text", Toast.LENGTH_SHORT).show()
+-        }
+-    }
++    GestionLibrosV2Theme {
++        var notes by remember { mutableStateOf(book.notes?.split("\n\n") ?: emptyList()) }
++        var showDialog by remember { mutableStateOf(false) }
++        var showNoteInputDialog by remember { mutableStateOf(false) }
++        var newNote by remember { mutableStateOf("") }
++        var page by remember { mutableStateOf("") }
++        var showCamera by remember { mutableStateOf(false) }
++        var scannedText by remember { mutableStateOf("") }
++        var capturedImageUri by remember { mutableStateOf<Uri?>(null) }
++        var selectedText by remember { mutableStateOf("") }
++        var showSelectedTextDialog by remember { mutableStateOf(false) }
++        var showScannedTextDialog by remember { mutableStateOf(false) }
++        var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
++        var noteToDelete by remember { mutableStateOf("") }
++        var expandedNote by remember { mutableStateOf<String?>(null) }
++        val context = LocalContext.current
++        val cameraPermissionLauncher = rememberLauncherForActivityResult(
++            contract = ActivityResultContracts.RequestPermission()
++        ) { isGranted ->
++            if (isGranted) {
++                showCamera = true
++            } else {
++                Toast.makeText(context, "Camera permission is required to scan text", Toast.LENGTH_SHORT).show()
++            }
++        }
+ 
+-    Scaffold(
+-        topBar = {
+-            TopAppBar(
+-                title = { Text("Notas de ${book.title}") },
+-                navigationIcon = {
+-                    IconButton(onClick = { navController.popBackStack() }) {
+-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+-                    }
+-                }
+-            )
+-        },
+-        content = { paddingValues ->
+-            Box(modifier = Modifier.fillMaxSize()) {
+-                Column(
+-                    modifier = Modifier
+-                        .fillMaxSize()
+-                        .padding(paddingValues)
+-                        .padding(16.dp)
+-                ) {
+-                    LazyColumn {
+-                        items(notes) { note ->
+-                            Row(
+-                                modifier = Modifier
+-                                    .fillMaxWidth()
+-                                    .padding(8.dp)
+-                                    .background(MaterialTheme.colors.primary.copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp))
+-                                    .padding(8.dp)
+-                            ) {
+-                                Column(modifier = Modifier.weight(1f)) {
+-                                    val displayText = note.substringAfter(":").trim()
+-                                    val pageText = note.substringBefore(":").trim()
+-                                    Box(modifier = Modifier.fillMaxWidth()) {
+-                                        Text(
+-                                            text = buildAnnotatedString {
+-                                                append(displayText)
+-                                                append("\n")
+-                                                withStyle(style = SpanStyle(color = MaterialTheme.colors.secondary)) {
+-                                                    append("Página $pageText")
+-                                                }
+-                                            },
+-                                            maxLines = if (expandedNote == note) Int.MAX_VALUE else 3,
+-                                            overflow = TextOverflow.Ellipsis,
+-                                            modifier = Modifier
+-                                                .fillMaxWidth()
+-                                                .clickable { expandedNote = if (expandedNote == note) null else note }
+-                                        )
+-                                    }
+-                                }
+-                                IconButton(onClick = {
+-                                    noteToDelete = note
+-                                    showDeleteConfirmationDialog = true
+-                                }) {
+-                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete Note")
+-                                }
+-                            }
+-                        }
+-                    }
+-                    Spacer(modifier = Modifier.height(16.dp))
+-                    Button(
+-                        onClick = { showDialog = true },
+-                        modifier = Modifier.align(Alignment.CenterHorizontally)
+-                    ) {
+-                        Text("Añadir nota")
+-                    }
+-                    if (showDialog) {
+-                        AlertDialog(
+-                            onDismissRequest = { showDialog = false },
+-                            title = { Text("Añadir nota") },
+-                            text = {
+-                                Column {
+-                                    Button(onClick = {
+-                                        showDialog = false
+-                                        showNoteInputDialog = true
+-                                    }) {
+-                                        Text("Escribir nota")
+-                                    }
+-                                    Spacer(modifier = Modifier.height(8.dp))
+-                                    Button(onClick = {
+-                                        showDialog = false
+-                                        cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+-                                    }) {
+-                                        Text("Escanear texto")
+-                                    }
+-                                }
+-                            },
+-                            confirmButton = {
+-                                Button(onClick = { showDialog = false }) {
+-                                    Text("Cancelar")
+-                                }
+-                            }
+-                        )
+-                    }
+-                    if (showNoteInputDialog) {
+-                        AlertDialog(
+-                            onDismissRequest = { showNoteInputDialog = false },
+-                            title = { Text("Escribir nota") },
+-                            text = {
+-                                Column {
+-                                    TextField(
+-                                        value = newNote,
+-                                        onValueChange = { newNote = it },
+-                                        label = { Text("Nota") },
+-                                        modifier = Modifier.fillMaxWidth()
+-                                    )
+-                                    Spacer(modifier = Modifier.height(8.dp))
+-                                    TextField(
+-                                        value = page,
+-                                        onValueChange = { page = it },
+-                                        label = { Text("Página") },
+-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+-                                        modifier = Modifier.fillMaxWidth()
+-                                    )
+-                                }
+-                            },
+-                            confirmButton = {
+-                                Button(onClick = {
+-                                    notes = notes + "$page: $newNote"
+-                                    showNoteInputDialog = false
+-                                }) {
+-                                    Text("Añadir")
+-                                }
+-                            },
+-                            dismissButton = {
+-                                Button(onClick = { showNoteInputDialog = false }) {
+-                                    Text("Cancelar")
+-                                }
+-                            }
+-                        )
+-                    }
+-                }
+-                if (showCamera) {
+-                    CameraPreview(
+-                        onTextScanned = { scannedText = it },
+-                        onImageCaptured = { uri -> capturedImageUri = uri }
+-                    )
+-                }
+-                if (capturedImageUri != null) {
+-                    Image(
+-                        painter = rememberImagePainter(capturedImageUri),
+-                        contentDescription = null,
+-                        modifier = Modifier.fillMaxSize()
+-                    )
+-                }
+-                if (scannedText.isNotEmpty()) {
+-                    showScannedTextDialog = true
+-                }
+-                if (showScannedTextDialog) {
+-                    AlertDialog(
+-                        onDismissRequest = { showScannedTextDialog = false },
+-                        title = { Text("Texto Escaneado") },
+-                        text = {
+-                            var textFieldValue by remember { mutableStateOf(TextFieldValue(scannedText)) }
+-                            Column(
+-                                horizontalAlignment = Alignment.CenterHorizontally
+-                            ) {
+-                                SelectionContainer {
+-                                    TextField(
+-                                        value = textFieldValue,
+-                                        onValueChange = { textFieldValue = it },
+-                                        modifier = Modifier.fillMaxWidth()
+-                                    )
+-                                }
+-                                Spacer(modifier = Modifier.height(8.dp))
+-                                Button(
+-                                    onClick = {
+-                                        selectedText = textFieldValue.text.substring(
+-                                            textFieldValue.selection.start,
+-                                            textFieldValue.selection.end
+-                                        )
+-                                        showSelectedTextDialog = true
+-                                    }
+-                                ) {
+-                                    Text("Seleccionar texto")
+-                                }
+-                            }
+-                        },
+-                        confirmButton = {
+-                            Button(onClick = {
+-                                showScannedTextDialog = false
+-                                scannedText = ""
+-                            }) {
+-                                Text("Cerrar")
+-                            }
+-                        }
+-                    )
+-                }
+-                if (showSelectedTextDialog) {
+-                    AlertDialog(
+-                        onDismissRequest = { showSelectedTextDialog = false },
+-                        title = { Text("Texto Seleccionado") },
+-                        text = {
+-                            Column {
+-                                Text(selectedText)
+-                                Spacer(modifier = Modifier.height(8.dp))
+-                                TextField(
+-                                    value = page,
+-                                    onValueChange = { page = it },
+-                                    label = { Text("Página") },
+-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+-                                    modifier = Modifier.fillMaxWidth()
+-                                )
+-                            }
+-                        },
+-                        confirmButton = {
+-                            Button(onClick = {
+-                                notes = notes + "$page: $selectedText"
+-                                viewModel.updateBookNotes(book.copy(notes = notes.joinToString("\n\n")))
+-                                Toast.makeText(context, "Nota guardada", Toast.LENGTH_SHORT).show()
+-                                showSelectedTextDialog = false
+-                                showScannedTextDialog = false
+-                                scannedText = ""
+-                                showCamera = false
+-                                capturedImageUri = null
+-                            }) {
+-                                Text("Guardar")
+-                            }
+-                        },
+-                        dismissButton = {
+-                            Button(onClick = { showSelectedTextDialog = false }) {
+-                                Text("Cancelar")
+-                            }
+-                        }
+-                    )
+-                }
+-                if (showDeleteConfirmationDialog) {
+-                    AlertDialog(
+-                        onDismissRequest = { showDeleteConfirmationDialog = false },
+-                        title = { Text("Confirmar eliminación") },
+-                        text = { Text("¿Estás seguro de que quieres eliminar esta nota?") },
+-                        confirmButton = {
+-                            Button(onClick = {
+-                                notes = notes.filter { it != noteToDelete }
+-                                viewModel.updateBookNotes(book.copy(notes = notes.joinToString("\n\n")))
+-                                showDeleteConfirmationDialog = false
+-                            }) {
+-                                Text("Eliminar")
+-                            }
+-                        },
+-                        dismissButton = {
+-                            Button(onClick = { showDeleteConfirmationDialog = false }) {
+-                                Text("Cancelar")
+-                            }
+-                        }
+-                    )
+-                }
++        Scaffold(
++            topBar = {
++                TopAppBar(
++                    title = { Text("Notas de ${book.title}") },
++                    navigationIcon = {
++                        IconButton(onClick = { navController.popBackStack() }) {
++                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
++                        }
++                    }
++                )
++            },
++            content = { paddingValues ->
++                Box(modifier = Modifier.fillMaxSize()) {
++                    Column(
++                        modifier = Modifier
++                            .fillMaxSize()
++                            .padding(paddingValues)
++                            .padding(16.dp)
++                    ) {
++                        LazyColumn {
++                            items(notes) { note ->
++                                NoteItem(
++                                    note = note,
++                                    expandedNote = expandedNote,
++                                    onExpandNote = { expandedNote = if (expandedNote == note) null else note },
++                                    onDeleteNote = {
++                                        noteToDelete = note
++                                        showDeleteConfirmationDialog = true
++                                    }
++                                )
++                            }
++                        }
++                        Spacer(modifier = Modifier.height(16.dp))
++                        Button(
++                            onClick = { showDialog = true },
++                            modifier = Modifier.align(Alignment.CenterHorizontally)
++                        ) {
++                            Text("Añadir nota")
++                        }
++                        if (showDialog) {
++                            AddNoteDialog(
++                                onDismiss = { showDialog = false },
++                                onWriteNote = {
++                                    showDialog = false
++                                    showNoteInputDialog = true
++                                },
++                                onScanText = {
++                                    showDialog = false
++                                    cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
++                                }
++                            )
++                        }
++                        if (showNoteInputDialog) {
++                            NoteInputDialog(
++                                newNote = newNote,
++                                onNewNoteChange = { newNote = it },
++                                page = page,
++                                onPageChange = { page = it },
++                                onDismiss = { showNoteInputDialog = false },
++                                onAddNote = {
++                                    notes = notes + "$page: $newNote"
++                                    showNoteInputDialog = false
++                                }
++                            )
++                        }
++                    }
++                    if (showCamera) {
++                        CameraPreview(
++                            onTextScanned = { scannedText = it },
++                            onImageCaptured = { uri -> capturedImageUri = uri }
++                        )
++                    }
++                    if (capturedImageUri != null) {
++                        Image(
++                            painter = rememberImagePainter(capturedImageUri),
++                            contentDescription = null,
++                            modifier = Modifier.fillMaxSize()
++                        )
++                    }
++                    if (scannedText.isNotEmpty()) {
++                        showScannedTextDialog = true
++                    }
++                    if (showScannedTextDialog) {
++                        ScannedTextDialog(
++                            scannedText = scannedText,
++                            onDismiss = { showScannedTextDialog = false },
++                            onSelectText = { selectedText = it; showSelectedTextDialog = true }
++                        )
++                    }
++                    if (showSelectedTextDialog) {
++                        SelectedTextDialog(
++                            selectedText = selectedText,
++                            page = page,
++                            onPageChange = { page = it },
++                            onDismiss = { showSelectedTextDialog = false },
++                            onSaveNote = {
++                                notes = notes + "$page: $selectedText"
++                                viewModel.updateBookNotes(book.copy(notes = notes.joinToString("\n\n")))
++                                Toast.makeText(context, "Nota guardada", Toast.LENGTH_SHORT).show()
++                                showSelectedTextDialog = false
++                                showScannedTextDialog = false
++                                scannedText = ""
++                                showCamera = false
++                                capturedImageUri = null
++                            }
++                        )
++                    }
++                    if (showDeleteConfirmationDialog) {
++                        DeleteConfirmationDialog(
++                            onDismiss = { showDeleteConfirmationDialog = false },
++                            onDelete = {
++                                notes = notes.filter { it != noteToDelete }
++                                viewModel.updateBookNotes(book.copy(notes = notes.joinToString("\n\n")))
++                                showDeleteConfirmationDialog = false
++                            }
++                        )
++                    }
++                }
++            }
++        )
++    }
++}
++
++@Composable
++fun NoteItem(
++    note: String,
++    expandedNote: String?,
++    onExpandNote: () -> Unit,
++    onDeleteNote: () -> Unit
++) {
++    Row(
++        modifier = Modifier
++            .fillMaxWidth()
++            .padding(8.dp)
++            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp))
++            .padding(8.dp)
++    ) {
++        Column(modifier = Modifier.weight(1f)) {
++            val displayText = note.substringAfter(":").trim()
++            val pageText = note.substringBefore(":").trim()
++            Box(modifier = Modifier.fillMaxWidth()) {
++                Text(
++                    text = buildAnnotatedString {
++                        append(displayText)
++                        append("\n")
++                        withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.secondary)) {
++                            append("Página $pageText")
++                        }
++                    },
++                    maxLines = if (expandedNote == note) Int.MAX_VALUE else 3,
++                    overflow = TextOverflow.Ellipsis,
++                    modifier = Modifier
++                        .fillMaxWidth()
++                        .clickable { onExpandNote() }
++                )
++            }
++        }
++        IconButton(onClick = { onDeleteNote() }) {
++            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete Note")
++        }
++    }
++}
++
++@Composable
++fun AddNoteDialog(
++    onDismiss: () -> Unit,
++    onWriteNote: () -> Unit,
++    onScanText: () -> Unit
++) {
++    AlertDialog(
++        onDismissRequest = { onDismiss() },
++        title = { Text("Añadir nota") },
++        text = {
++            Column {
++                Button(onClick = { onWriteNote() }) {
++                    Text("Escribir nota")
++                }
++                Spacer(modifier = Modifier.height(8.dp))
++                Button(onClick = { onScanText() }) {
++                    Text("Escanear texto")
++                }
++            }
++        },
++        confirmButton = {
++            Button(onClick = { onDismiss() }) {
++                Text("Cancelar")
++            }
++        }
++    )
++}
++
++@Composable
++fun NoteInputDialog(
++    newNote: String,
++    onNewNoteChange: (String) -> Unit,
++    page: String,
++    onPageChange: (String) -> Unit,
++    onDismiss: () -> Unit,
++    onAddNote: () -> Unit
++) {
++    AlertDialog(
++        onDismissRequest = { onDismiss() },
++        title = { Text("Escribir nota") },
++        text = {
++            Column {
++                TextField(
++                    value = newNote,
++                    onValueChange = { onNewNoteChange(it) },
++                    label = { Text("Nota") },
++                    modifier = Modifier.fillMaxWidth()
++                )
++                Spacer(modifier = Modifier.height(8.dp))
++                TextField(
++                    value = page,
++                    onValueChange = { onPageChange(it) },
++                    label = { Text("Página") },
++                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
++                    modifier = Modifier.fillMaxWidth()
++                )
++            }
++        },
++        confirmButton = {
++            Button(onClick = { onAddNote() }) {
++                Text("Añadir")
++            }
++        },
++        dismissButton = {
++            Button(onClick = { onDismiss() }) {
++                Text("Cancelar")
++            }
++        }
++    )
++}
++
++@Composable
++fun ScannedTextDialog(
++    scannedText: String,
++    onDismiss: () -> Unit,
++    onSelectText: (String) -> Unit
++) {
++    AlertDialog(
++        onDismissRequest = { onDismiss() },
++        title = { Text("Texto Escaneado") },
++        text = {
++            var textFieldValue by remember { mutableStateOf(TextFieldValue(scannedText)) }
++            Column(
++                horizontalAlignment = Alignment.CenterHorizontally
++            ) {
++                SelectionContainer {
++                    TextField(
++                        value = textFieldValue,
++                        onValueChange = { textFieldValue = it },
++                        modifier = Modifier.fillMaxWidth()
++                    )
++                }
++                Spacer(modifier = Modifier.height(8.dp))
++                Button(
++                    onClick = {
++                        onSelectText(
++                            textFieldValue.text.substring(
++                                textFieldValue.selection.start,
++                                textFieldValue.selection.end
++                            )
++                        )
++                    }
++                ) {
++                    Text("Seleccionar texto")
++                }
++            }
++        },
++        confirmButton = {
++            Button(onClick = { onDismiss() }) {
++                Text("Cerrar")
++            }
++        }
++    )
++}
++
++@Composable
++fun SelectedTextDialog(
++    selectedText: String,
++    page: String,
++    onPageChange: (String) -> Unit,
++    onDismiss: () -> Unit,
++    onSaveNote: () -> Unit
++) {
++    AlertDialog(
++        onDismissRequest = { onDismiss() },
++        title = { Text("Texto Seleccionado") },
++        text = {
++            Column {
++                Text(selectedText)
++                Spacer(modifier = Modifier.height(8.dp))
++                TextField(
++                    value = page,
++                    onValueChange = { onPageChange(it) },
++                    label = { Text("Página") },
++                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
++                    modifier = Modifier.fillMaxWidth()
++                )
++            }
++        },
++        confirmButton = {
++            Button(onClick = { onSaveNote() }) {
++                Text("Guardar")
++            }
++        },
++        dismissButton = {
++            Button(onClick = { onDismiss() }) {
++                Text("Cancelar")
++            }
++        }
++    )
++}
++
++@Composable
++fun DeleteConfirmationDialog(
++    onDismiss: () -> Unit,
++    onDelete: () -> Unit
++) {
++    AlertDialog(
++        onDismissRequest = { onDismiss() },
++        title = { Text("Confirmar eliminación") },
++        text = { Text("¿Estás seguro de que quieres eliminar esta nota?") },
++        confirmButton = {
++            Button(onClick = { onDelete() }) {
++                Text("Eliminar")
++            }
++        },
++        dismissButton = {
++            Button(onClick = { onDismiss() }) {
++                Text("Cancelar")
+             }
+         }
+     )

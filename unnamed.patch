@@ -1,0 +1,84 @@
+Index: app/src/main/java/com/mikel/gestionlibrosv2/BookDetailScreen.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/mikel/gestionlibrosv2/BookDetailScreen.kt b/app/src/main/java/com/mikel/gestionlibrosv2/BookDetailScreen.kt
+--- a/app/src/main/java/com/mikel/gestionlibrosv2/BookDetailScreen.kt	
++++ b/app/src/main/java/com/mikel/gestionlibrosv2/BookDetailScreen.kt	(date 1731775826779)
+@@ -6,8 +6,6 @@
+ import androidx.compose.foundation.rememberScrollState
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.verticalScroll
+-import androidx.compose.material.icons.Icons
+-import androidx.compose.material.icons.filled.ArrowBack
+ import androidx.compose.material3.*
+ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Alignment
+@@ -15,16 +13,14 @@
+ import androidx.compose.ui.draw.clip
+ import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.layout.ContentScale
+-import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.tooling.preview.Preview
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+-import androidx.navigation.NavController
+ import coil.compose.rememberImagePainter
+ 
+ @Composable
+-fun BookDetailScreen(navController: NavController, book: Book) {
++fun BookDetailScreen(book: Book) {
+     Column(
+         modifier = Modifier
+             .fillMaxSize()
+@@ -33,20 +29,12 @@
+         verticalArrangement = Arrangement.Top,
+         horizontalAlignment = Alignment.CenterHorizontally
+     ) {
+-        Row(
+-            modifier = Modifier.fillMaxWidth(),
+-            verticalAlignment = Alignment.CenterVertically
+-        ) {
+-            IconButton(onClick = { navController.popBackStack() }) {
+-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+-            }
+-        }
+         Image(
+             painter = rememberImagePainter(data = book.coverUrl),
+             contentDescription = null,
+             modifier = Modifier
+-                .width(192.dp)
+-                .height(288.dp)
++                .width(192.dp) // Increased width
++                .height(288.dp) // Increased height, maintaining 2:3 aspect ratio
+                 .clip(RoundedCornerShape(8.dp)),
+             contentScale = ContentScale.Crop
+         )
+@@ -87,7 +75,7 @@
+         Box(
+             modifier = Modifier
+                 .fillMaxWidth()
+-                .height(248.dp)
++                .height(248.dp) // Increased height for description
+                 .verticalScroll(rememberScrollState())
+         ) {
+             Text(
+@@ -107,7 +95,7 @@
+         ) {
+             Text(
+                 text = "Añadir libro",
+-                color = Color.White,
++                color = Color.Red,
+                 fontSize = 16.sp,
+                 fontWeight = FontWeight.Bold
+             )
+@@ -126,5 +114,5 @@
+         publisher = "Nova",
+         coverUrl = "file:///android_asset/predeterminada.jpg"
+     )
+-    BookDetailScreen(navController = NavController(LocalContext.current), book = book)
++    BookDetailScreen(book = book)
+ }
+\ No newline at end of file
